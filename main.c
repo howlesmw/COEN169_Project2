@@ -650,21 +650,138 @@ int vector (int user, int movie)
 
 int cosineSimilarity (int user, int movie)
 {
-	int rating = 0;
-
+	// Declare variables for use in function
+    int rating = 0;
+    int minimumPairs = 1;
+    float relevantMovies[1000][4]; // 0: item ID - 1: user ID - 2: user average - 3: item similarity weight
+    int i, j, count;
+    float numerator, denominator, denominatorLeft, denominatorRight;
+    
+    for (i=0; i<1000; i++)
+    {
+        relevantMovies[i][0] = 2000;    // Initialize user ID to an unobtainable value for validation usage
+        relevantMovies[i][1] = 0;
+        relevantMovies[i][2] = 0;
+        relevantMovies[i][3] = 0;
+    }
+    
+    // Find movies with co-rated pairs
+    for (i=0; i<1000; i++)
+    {
+        count = 0;
+        for (j=0; j<200; j++)
+        {
+            if ((ratings[j][i] != 0 && ratings[j][i] != 9) && (ratings[j][i] != 0 && ratings[j][i] != 9) &&
+                (ratings[j][movie] != 0 && ratings[j][movie] != 9) && (ratings[j][movie] != 0 && ratings[j][movie] != 9))
+            {
+                count++;
+            }
+        }
+        if (count >= minimumPairs)
+        {
+            count = 0;
+            for (j=0; j<200; j++)
+            {
+                if ((ratings[j][i] != 0 && ratings[j][i] != 9) && (ratings[j][i] != 0 && ratings[j][i] != 9) &&
+                    (ratings[j][movie] != 0 && ratings[j][movie] != 9) && (ratings[j][movie] != 0 && ratings[j][movie] != 9))
+                {
+                    relevantMovies[count][0] = i;
+                    relevantMovies[count][1] = j;
+                    count++;
+                }
+            }
+        }
+    }
+    
+    // Calculate user averages for stored users
+    for (i=0; i<1000; i++)
+    {
+        if (relevantMovies[i][0] != 2000)
+        {
+            count = 0;
+            for (j=0; j<1000; j++)
+            {
+                if ((ratings[(int)relevantMovies[i][1]][j] != 0) && (ratings[(int)relevantMovies[i][1]][j] != 9))
+                {
+                    relevantMovies[i][2] += ratings[(int)relevantMovies[i][1]][j];
+                    count++;
+                }
+            }
+            relevantMovies[i][2] = relevantMovies[i][2] / count;
+        }
+    }
+    
+    // Calculate similarity weights for stored movies
+    i = 0;
+    numerator = 0;
+    denominator = 0;
+    denominatorLeft = 0;
+    denominatorRight = 0;
+    while ((i < 1000) && (relevantMovies[i][0] != 2000))
+    {
+        numerator += (ratings[(int)relevantMovies[i][1]][movie] - relevantMovies[i][2]) * (ratings[(int)relevantMovies[i][1]][(int)relevantMovies[i][0]] - relevantMovies[i][2]);
+        denominatorLeft += (ratings[(int)relevantMovies[i][1]][movie] - relevantMovies[i][2]) * (ratings[(int)relevantMovies[i][1]][movie] - relevantMovies[i][2]);
+        denominatorRight += (ratings[(int)relevantMovies[i][1]][(int)relevantMovies[i][0]] - relevantMovies[i][2]) * (ratings[(int)relevantMovies[i][1]][(int)relevantMovies[i][0]] - relevantMovies[i][2]);
+        j = i + 1;
+        while ((j < 1000) && (relevantMovies[j][0] == relevantMovies[i][0]))
+        {
+            numerator += (ratings[(int)relevantMovies[j][1]][movie] - relevantMovies[j][2]) * (ratings[(int)relevantMovies[j][1]][(int)relevantMovies[j][0]] - relevantMovies[j][2]);
+            denominatorLeft += (ratings[(int)relevantMovies[j][1]][movie] - relevantMovies[j][2]) * (ratings[(int)relevantMovies[j][1]][movie] - relevantMovies[j][2]);
+            denominatorRight += (ratings[(int)relevantMovies[j][1]][(int)relevantMovies[j][0]] - relevantMovies[j][2]) * (ratings[(int)relevantMovies[j][1]][(int)relevantMovies[j][0]] - relevantMovies[j][2]);
+            j++;
+        }
+        denominator = sqrt (denominatorLeft) * sqrt (denominatorRight);
+        relevantMovies[i][3] = numerator / denominator;
+        i = j;
+    }
+    
+    // Calculate rating
+    numerator = 0;
+    denominator = 0;
+    i = 0;
+    while ((i < 1000) && (relevantMovies[i][0] != 2000))
+    {
+        numerator += relevantMovies[i][3] * ratings[user][(int)relevantMovies[i][0]];
+        denominator += fabsf (relevantMovies[i][3]);
+        j = i + 1;
+        while ((j < 1000) && (relevantMovies[j][0] == relevantMovies[i][0]))
+        {
+            j++;
+        }
+        i = j;
+    }
+    rating = fabsf (numerator / denominator) + 0.5;
+    
+    if (rating > 5)
+	{
+		rating = 5;
+	}
+	if (rating < 1)
+	{
+		rating = 1;
+	}
+    
 	return rating;
 }
 
 int custom (int user, int movie)
 {
 	int rating = 0;
+    
+    int pearsonRating = pearsonStandard (user, movie);
+    int pearsonCaseRating = pearsonCase (user, movie);
+    int pearsonInverseRating = pearsonInverse (user, movie);
+    int vectorRating = vector (user, movie);
+    int cosineRating = cosineSimilarity (user, movie);
+    
+    rating = ((pearsonRating + pearsonCaseRating + pearsonInverseRating + vectorRating + cosineRating) + 0.5) / 5;
 
 	return rating;
 }
 
 int main (void)
 {
-	// Initialize variables for use in functions 
+	// Declare variables for use in functions
 	int i, j;
 	FILE *infile;
 
